@@ -2,7 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Cysharp.Threading.Tasks.Linq;
+using Cysharp.Threading.Tasks.Triggers;
 using NativeWebSocket;
+using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace AsyncWebSocket
 {
@@ -18,48 +22,9 @@ namespace AsyncWebSocket
         private Channel<string> _onErrorHandler;
         private Channel<WebSocketCloseCode> _onClosedHandler;
 
-        #region publish property
-
-        /// <summary>
-        /// jp: WebSocketの接続が開いたときに発行されるイベント
-        /// en: Event issued when the WebSocket connection is opened
-        /// </summary>
-        public IUniTaskAsyncEnumerable<AsyncUnit> OnOpenedAsyncEnumerable(CancellationToken ct)
-        {
-            return _onOpenedHandler.Reader.ReadAllAsync(ct);
-        }
-
-        /// <summary>
-        /// jp: WebSocketからメッセージを受信したときに発行されるイベント
-        /// en: Event issued when a message is received from WebSocket
-        /// </summary>
-        public IUniTaskAsyncEnumerable<byte[]> OnReceivedAsyncEnumerable(CancellationToken ct)
-        {
-            return _onReceivedHandler.Reader.ReadAllAsync(ct);
-        }
-
-        /// <summary>
-        /// jp: WebSocketからエラーが発生したときに発行されるイベント
-        /// en: Event issued when an error occurs from WebSocket
-        /// </summary>
-        public IUniTaskAsyncEnumerable<string> OnErrorAsyncEnumerable(CancellationToken ct)
-        {
-            return _onErrorHandler.Reader.ReadAllAsync(ct);
-        }
-
-        /// <summary>
-        /// jp: WebSocketの接続が閉じたときに発行されるイベント
-        /// en: Event issued when the WebSocket connection is closed
-        /// </summary>
-        public IUniTaskAsyncEnumerable<WebSocketCloseCode> OnClosedAsyncEnumerable(CancellationToken ct)
-        {
-            return _onClosedHandler.Reader.ReadAllAsync(ct);
-        }
-
-        #endregion
-
         #region static member
 
+        private static CancellationTokenSource _updateCts;
         private static Dictionary<string, WebSocketAsyncTrigger> _webSocketMap;
 
         /// <summary>
@@ -72,8 +37,21 @@ namespace AsyncWebSocket
         /// </param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        public static async UniTask<WebSocketAsyncTrigger> GetOrCreate(string uri, CancellationToken ct = default)
+        public static WebSocketAsyncTrigger GetOrCreate(string uri, CancellationToken ct = default)
         {
+            ct.ThrowIfCancellationRequested();
+
+            if (_updateCts == null)
+            {
+                _updateCts = new CancellationTokenSource();
+                _webSocketMap ??= new Dictionary<string, WebSocketAsyncTrigger>();
+
+                var go = new GameObject(nameof(WebSocketAsyncTrigger));
+                go.GetAsyncUpdateTrigger().Subscribe(_ =>  OnUpdate());
+                Object.DontDestroyOnLoad(go);
+            }
+
+
             if (_webSocketMap.TryGetValue(uri, out var websocket))
             {
                 return websocket;
@@ -82,9 +60,20 @@ namespace AsyncWebSocket
             WebSocketAsyncTrigger genWs = new WebSocketAsyncTrigger();
             _webSocketMap[uri] = genWs;
 
-            await genWs.StartAsync(uri, ct);
+            genWs.Initialize(uri, ct);
 
             return genWs;
+        }
+
+        private static void OnUpdate()
+        {
+            if (_webSocketMap != null)
+            {
+                foreach (var (_, ws) in _webSocketMap)
+                {
+                    ws._webSocket.DispatchMessageQueue();
+                }
+            }
         }
 
         #endregion
@@ -93,8 +82,7 @@ namespace AsyncWebSocket
         {
         }
 
-
-        private async UniTask StartAsync(string uri, CancellationToken ct = default)
+        private void Initialize(string uri, CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
 
@@ -109,7 +97,7 @@ namespace AsyncWebSocket
             _webSocket.OnClose += OnClosed;
             _webSocket.OnOpen += OnOpened;
 
-            await _webSocket.Connect().AsUniTask().AttachExternalCancellation(ct);
+            _webSocket.Connect().AsUniTask().AttachExternalCancellation(ct).Forget();
         }
 
         /// <summary>
@@ -160,12 +148,58 @@ namespace AsyncWebSocket
 
         #endregion
 
+        #region publish property
+
+        /// <summary>
+        /// jp: WebSocketの接続が開いたときに発行されるイベント
+        /// en: Event issued when the WebSocket connection is opened
+        /// </summary>
+        public IUniTaskAsyncEnumerable<AsyncUnit> OnOpenedAsyncEnumerable(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _onOpenedHandler.Reader.ReadAllAsync(ct);
+        }
+
+        /// <summary>
+        /// jp: WebSocketからメッセージを受信したときに発行されるイベント
+        /// en: Event issued when a message is received from WebSocket
+        /// </summary>
+        public IUniTaskAsyncEnumerable<byte[]> OnReceivedAsyncEnumerable(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _onReceivedHandler.Reader.ReadAllAsync(ct);
+        }
+
+        /// <summary>
+        /// jp: WebSocketからエラーが発生したときに発行されるイベント
+        /// en: Event issued when an error occurs from WebSocket
+        /// </summary>
+        public IUniTaskAsyncEnumerable<string> OnErrorAsyncEnumerable(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _onErrorHandler.Reader.ReadAllAsync(ct);
+        }
+
+        /// <summary>
+        /// jp: WebSocketの接続が閉じたときに発行されるイベント
+        /// en: Event issued when the WebSocket connection is closed
+        /// </summary>
+        public IUniTaskAsyncEnumerable<WebSocketCloseCode> OnClosedAsyncEnumerable(CancellationToken ct = default)
+        {
+            ct.ThrowIfCancellationRequested();
+            return _onClosedHandler.Reader.ReadAllAsync(ct);
+        }
+
+        #endregion
+
+
         /// <summary>
         /// jp: WebSocketのインスタンスを破棄する
         /// en: Destroy WebSocket instance
         /// </summary>
         public void Dispose()
         {
+            _webSocket.CancelConnection();
             _webSocket.Close();
             _onOpenedHandler.Writer.TryComplete();
             _onReceivedHandler.Writer.TryComplete();
