@@ -13,10 +13,10 @@ namespace AsyncWebSocket
     public class WebSocketAsyncTrigger : IDisposable
     {
         private WebSocket _webSocket;
-        private AsyncReactiveProperty<AsyncUnit> _onOpenedHandler;
-        private AsyncReactiveProperty<byte[]> _onReceivedHandler;
-        private AsyncReactiveProperty<string> _onErrorHandler;
-        private AsyncReactiveProperty<WebSocketCloseCode> _onClosedHandler;
+        private Channel<AsyncUnit> _onOpenedHandler;
+        private Channel<byte[]> _onReceivedHandler;
+        private Channel<string> _onErrorHandler;
+        private Channel<WebSocketCloseCode> _onClosedHandler;
 
         #region publish property
 
@@ -24,25 +24,37 @@ namespace AsyncWebSocket
         /// jp: WebSocketの接続が開いたときに発行されるイベント
         /// en: Event issued when the WebSocket connection is opened
         /// </summary>
-        public IUniTaskAsyncEnumerable<AsyncUnit> OnOpenedAsyncEnumerable => _onOpenedHandler;
+        public IUniTaskAsyncEnumerable<AsyncUnit> OnOpenedAsyncEnumerable(CancellationToken ct)
+        {
+            return _onOpenedHandler.Reader.ReadAllAsync(ct);
+        }
 
         /// <summary>
         /// jp: WebSocketからメッセージを受信したときに発行されるイベント
         /// en: Event issued when a message is received from WebSocket
         /// </summary>
-        public IUniTaskAsyncEnumerable<byte[]> OnReceivedAsyncEnumerable => _onReceivedHandler;
+        public IUniTaskAsyncEnumerable<byte[]> OnReceivedAsyncEnumerable(CancellationToken ct)
+        {
+            return _onReceivedHandler.Reader.ReadAllAsync(ct);
+        }
 
         /// <summary>
         /// jp: WebSocketからエラーが発生したときに発行されるイベント
         /// en: Event issued when an error occurs from WebSocket
         /// </summary>
-        public IUniTaskAsyncEnumerable<string> OnErrorAsyncEnumerable => _onErrorHandler;
+        public IUniTaskAsyncEnumerable<string> OnErrorAsyncEnumerable(CancellationToken ct)
+        {
+            return _onErrorHandler.Reader.ReadAllAsync(ct);
+        }
 
         /// <summary>
         /// jp: WebSocketの接続が閉じたときに発行されるイベント
         /// en: Event issued when the WebSocket connection is closed
         /// </summary>
-        public IUniTaskAsyncEnumerable<WebSocketCloseCode> OnClosedAsyncEnumerable => _onClosedHandler;
+        public IUniTaskAsyncEnumerable<WebSocketCloseCode> OnClosedAsyncEnumerable(CancellationToken ct)
+        {
+            return _onClosedHandler.Reader.ReadAllAsync(ct);
+        }
 
         #endregion
 
@@ -87,10 +99,10 @@ namespace AsyncWebSocket
             ct.ThrowIfCancellationRequested();
 
             _webSocket = new WebSocket(uri);
-            _onOpenedHandler = new(default);
-            _onReceivedHandler = new(default);
-            _onErrorHandler = new(default);
-            _onClosedHandler = new(default);
+            _onOpenedHandler = Channel.CreateSingleConsumerUnbounded<AsyncUnit>();
+            _onReceivedHandler = Channel.CreateSingleConsumerUnbounded<byte[]>();
+            _onErrorHandler = Channel.CreateSingleConsumerUnbounded<string>();
+            _onClosedHandler = Channel.CreateSingleConsumerUnbounded<WebSocketCloseCode>();
 
             _webSocket.OnMessage += OnMessaged;
             _webSocket.OnError += OnErrored;
@@ -128,22 +140,22 @@ namespace AsyncWebSocket
 
         private void OnOpened()
         {
-            _onOpenedHandler.Value = default;
+            _onOpenedHandler.Writer.TryWrite(AsyncUnit.Default);
         }
 
         private void OnMessaged(byte[] message)
         {
-            _onReceivedHandler.Value = message;
+            _onReceivedHandler.Writer.TryWrite(message);
         }
 
         private void OnErrored(string error)
         {
-            _onErrorHandler.Value = error;
+            _onErrorHandler.Writer.TryWrite(error);
         }
 
         private void OnClosed(WebSocketCloseCode closeCode)
         {
-            _onClosedHandler.Value = closeCode;
+            _onClosedHandler.Writer.TryWrite(closeCode);
         }
 
         #endregion
@@ -155,10 +167,10 @@ namespace AsyncWebSocket
         public void Dispose()
         {
             _webSocket.Close();
-            _onOpenedHandler.Dispose();
-            _onReceivedHandler.Dispose();
-            _onErrorHandler.Dispose();
-            _onClosedHandler.Dispose();
+            _onOpenedHandler.Writer.TryComplete();
+            _onReceivedHandler.Writer.TryComplete();
+            _onErrorHandler.Writer.TryComplete();
+            _onClosedHandler.Writer.TryComplete();
         }
     }
 }
