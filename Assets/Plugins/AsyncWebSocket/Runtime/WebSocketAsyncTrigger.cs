@@ -27,7 +27,7 @@ namespace AsyncWebSocket
 
         private static Dictionary<string, WebSocketAsyncTrigger> _webSocketMap;
 
-        public static async UniTask<WebSocketAsyncTrigger> GetOrCreate(string uri, CancellationToken ct)
+        public static async UniTask<WebSocketAsyncTrigger> GetOrCreate(string uri, CancellationToken ct=default)
         {
             if (_webSocketMap.TryGetValue(uri, out var websocket))
             {
