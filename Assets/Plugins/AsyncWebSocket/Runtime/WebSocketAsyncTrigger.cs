@@ -6,6 +6,10 @@ using NativeWebSocket;
 
 namespace AsyncWebSocket
 {
+    /// <summary>
+    /// jp: WebSocketの非同期処理を行うクラス
+    /// en: Class that performs asynchronous processing of WebSocket
+    /// </summary>
     public class WebSocketAsyncTrigger : IDisposable
     {
         private WebSocket _webSocket;
@@ -16,9 +20,28 @@ namespace AsyncWebSocket
 
         #region publish property
 
+        /// <summary>
+        /// jp: WebSocketの接続が開いたときに発行されるイベント
+        /// en: Event issued when the WebSocket connection is opened
+        /// </summary>
         public IUniTaskAsyncEnumerable<AsyncUnit> OnOpenedAsyncEnumerable => _onOpenedHandler;
+
+        /// <summary>
+        /// jp: WebSocketからメッセージを受信したときに発行されるイベント
+        /// en: Event issued when a message is received from WebSocket
+        /// </summary>
         public IUniTaskAsyncEnumerable<byte[]> OnReceivedAsyncEnumerable => _onReceivedHandler;
+
+        /// <summary>
+        /// jp: WebSocketからエラーが発生したときに発行されるイベント
+        /// en: Event issued when an error occurs from WebSocket
+        /// </summary>
         public IUniTaskAsyncEnumerable<string> OnErrorAsyncEnumerable => _onErrorHandler;
+
+        /// <summary>
+        /// jp: WebSocketの接続が閉じたときに発行されるイベント
+        /// en: Event issued when the WebSocket connection is closed
+        /// </summary>
         public IUniTaskAsyncEnumerable<WebSocketCloseCode> OnClosedAsyncEnumerable => _onClosedHandler;
 
         #endregion
@@ -27,7 +50,17 @@ namespace AsyncWebSocket
 
         private static Dictionary<string, WebSocketAsyncTrigger> _webSocketMap;
 
-        public static async UniTask<WebSocketAsyncTrigger> GetOrCreate(string uri, CancellationToken ct=default)
+        /// <summary>
+        /// jp: WebSocketのインスタンスを取得する。存在しない場合は作成
+        /// en: Get WebSocket instance or create if not exist
+        /// </summary>
+        /// <param name="uri">
+        /// jp: WebSocketのURI
+        /// en: WebSocket URI
+        /// </param>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        public static async UniTask<WebSocketAsyncTrigger> GetOrCreate(string uri, CancellationToken ct = default)
         {
             if (_webSocketMap.TryGetValue(uri, out var websocket))
             {
@@ -67,17 +100,31 @@ namespace AsyncWebSocket
             await _webSocket.Connect().AsUniTask().AttachExternalCancellation(ct);
         }
 
+        /// <summary>
+        /// jp: WebSocketでメッセージを送信する
+        /// en: Send message with WebSocket
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="ct"></param>
         public async UniTask PublishAsync(string message, CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
             await _webSocket.SendText(message).AsUniTask().AttachExternalCancellation(ct);
         }
 
+        /// <summary>
+        /// jp: WebSocketでメッセージを送信する
+        /// en: Send message with WebSocket
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="ct"></param>
         public async UniTask PublishAsync(byte[] message, CancellationToken ct = default)
         {
             ct.ThrowIfCancellationRequested();
             await _webSocket.Send(message).AsUniTask().AttachExternalCancellation(ct);
         }
+
+        #region events
 
         private void OnOpened()
         {
@@ -99,6 +146,12 @@ namespace AsyncWebSocket
             _onClosedHandler.Value = closeCode;
         }
 
+        #endregion
+
+        /// <summary>
+        /// jp: WebSocketのインスタンスを破棄する
+        /// en: Destroy WebSocket instance
+        /// </summary>
         public void Dispose()
         {
             _webSocket.Close();
