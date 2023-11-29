@@ -1,0 +1,27 @@
+﻿{
+  "name": "com.mattun.asyncwebsocket",
+  "displayName": "AsyncWebSocket",
+  "author": {
+    "name": "mattun",
+    "email": "matsu222212@gmail.com",
+    "url": "https://github.com/AtaruMatsudaira/AsyncWebSocket"
+  },
+  "version": "0.0.1",
+  "unity": "2019.4",
+  "description": "async/await WebSocket for Unity \n Rapper of NativeWebSocket",
+  "keywords": [
+    "async/await",
+    "async",
+    "Task",
+    "UniTask",
+    "websocket",
+    "websockets",
+    "native websocket",
+    "native websockets"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "com.cysharp.unitask": "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask",
+    "com.endel.nativewebsocket": "https://github.com/endel/NativeWebSocket.git#upm"
+  }
+}
