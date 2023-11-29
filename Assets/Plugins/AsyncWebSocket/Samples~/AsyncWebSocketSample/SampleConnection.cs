@@ -5,7 +5,7 @@ using Cysharp.Threading.Tasks.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
-public class SampleSocket : MonoBehaviour
+public class SampleConnection : MonoBehaviour
 {
     [SerializeField] private Button button;
     [SerializeField] private string uri;
