@@ -19,7 +19,7 @@ public class SampleConnection : MonoBehaviour
 
     private async UniTask RunAsync()
     {
-        using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(destroyCancellationToken))
+        using (CancellationTokenSource cts = CancellationTokenSource.CreateLinkedTokenSource(this.GetCancellationTokenOnDestroy()))
         {
             _webSocketAsyncTrigger = WebSocketAsyncTrigger.GetOrCreate(uri, cts.Token);
 
