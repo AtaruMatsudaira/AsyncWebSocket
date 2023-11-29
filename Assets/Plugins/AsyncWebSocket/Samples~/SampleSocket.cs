@@ -23,8 +23,6 @@ public class SampleSocket : MonoBehaviour
         {
             _webSocketAsyncTrigger = WebSocketAsyncTrigger.GetOrCreate(uri, cts.Token);
 
-            Debug.Log("init");
-            
             _webSocketAsyncTrigger.OnReceivedAsyncEnumerable(cts.Token).Subscribe(data =>
             {
                 string msg = System.Text.Encoding.UTF8.GetString(data);
@@ -34,12 +32,11 @@ public class SampleSocket : MonoBehaviour
             _webSocketAsyncTrigger.OnErrorAsyncEnumerable(cts.Token)
                 .Subscribe(Debug.LogError)
                 .AddTo(cts.Token);
-            Debug.Log("start");
+                
             await button.onClick.OnInvokeAsAsyncEnumerable(cts.Token).Take(10).ForEachAwaitAsync(async _ =>
             {
                 await _webSocketAsyncTrigger.PublishAsync("test", cts.Token);
             }, cts.Token);
-            Debug.Log("end");
         }
     }
 
